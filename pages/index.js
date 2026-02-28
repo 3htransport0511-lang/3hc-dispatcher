@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-
 const STATES = ["TX","FL","GA","TN","NC","SC","AL","VA","KY","OK","MO"];
 
 export default function Home(){
