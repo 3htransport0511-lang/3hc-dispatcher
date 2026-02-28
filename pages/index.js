@@ -5,10 +5,10 @@ const STATES = ["TX","FL","GA","TN","NC","SC","AL","VA","KY","OK","MO"];
 export default function Home(){
   const [loads,setLoads]=useState([]);
   const [history,setHistory]=useState([]);
-  const [expenses,setExpenses]=useState([]);
   const [raw,setRaw]=useState("");
   const [diesel,setDiesel]=useState(4.0);
   const [mpg,setMpg]=useState(10);
+  const [suggestion,setSuggestion]=useState("");
 
   const COST = (diesel/mpg) + 0.15 + 0.22;
 
@@ -28,74 +28,73 @@ export default function Home(){
     setRaw("");
   };
 
-  const analyze=()=>{
-    const res=loads.map(l=>{
+  const analyzed = useMemo(()=>{
+    return loads.map(l=>{
       const total=Number(l.miles)+Number(l.deadhead);
+      if(!l.rate||!total) return null;
+
       const rpm=l.rate/total;
       const profit=(rpm-COST)*total;
-      return {...l,total,rpm,profit};
-    }).sort((a,b)=>b.rpm-a.rpm);
 
-    setHistory([...history,...res]);
+      return {...l,total,rpm,profit};
+    }).filter(Boolean).sort((a,b)=>b.profit-a.profit);
+  },[loads,COST]);
+
+  const run=()=>{
+    setHistory([...history,...analyzed]);
+
+    if(analyzed.length > 0){
+      const best = analyzed[0];
+      setSuggestion(`BOOK THIS → $${best.rate} | ${best.miles}mi | ${best.state}`);
+    }
   };
 
   const metrics = useMemo(()=>{
     const revenue = history.reduce((s,l)=>s+Number(l.rate||0),0);
     const miles = history.reduce((s,l)=>s+l.total,0);
-    const expensesTotal = expenses.reduce((s,e)=>s+Number(e||0),0);
-    const profit = revenue - (miles*COST) - expensesTotal;
+    const profit = revenue - (miles*COST);
 
-    const avgRPM = miles? revenue/miles:0;
-
-    const bestLane = history.reduce((acc,l)=>{
-      acc[l.state]=(acc[l.state]||0)+l.profit;
-      return acc;
-    },{});
-
-    const best = Object.entries(bestLane).sort((a,b)=>b[1]-a[1])[0];
-
-    return {
-      revenue,miles,profit,avgRPM,
-      bestLane: best? best[0]:"-"
-    };
-  },[history,expenses,COST]);
+    return { revenue, miles, profit };
+  },[history,COST]);
 
   return(
     <div style={{padding:20,background:"#020617",color:"white",minHeight:"100vh"}}>
-      <h1>🚛 3HC Business AI</h1>
+      <h1>🚛 3HC Auto Dispatcher AI</h1>
 
       <div style={card}>
-        <h3>📋 Add Load</h3>
+        <h3>⚡ Paste Loads</h3>
         <textarea style={input} value={raw} onChange={e=>setRaw(e.target.value)} />
-        <button style={btn} onClick={addLoad}>Add</button>
+        <button style={btn} onClick={addLoad}>Add Load</button>
       </div>
 
       <div style={card}>
-        <h3>⛽ Costs</h3>
+        <h3>⛽ Cost</h3>
         <input style={input} value={diesel} onChange={e=>setDiesel(e.target.value)} />
         <input style={input} value={mpg} onChange={e=>setMpg(e.target.value)} />
         <div>Cost/Mile: ${COST.toFixed(2)}</div>
       </div>
 
-      <button style={btn} onClick={analyze}>Run AI</button>
+      <button style={btn} onClick={run}>Run Auto AI</button>
+
+      {suggestion && (
+        <div style={{...card, border:"2px solid #22c55e"}}>
+          <h2>🤖 AI Recommendation</h2>
+          <div>{suggestion}</div>
+        </div>
+      )}
+
+      {analyzed.map((l,i)=>(
+        <div key={i} style={card}>
+          <div>Profit: ${l.profit.toFixed(0)}</div>
+          <div>RPM: ${l.rpm.toFixed(2)}</div>
+          <div>{l.state}</div>
+        </div>
+      ))}
 
       <div style={card}>
-        <h3>💸 Add Expense</h3>
-        <input style={input} placeholder="Expense" onKeyDown={e=>{
-          if(e.key==="Enter"){
-            setExpenses([...expenses,e.target.value]);
-            e.target.value="";
-          }
-        }}/>
-      </div>
-
-      <div style={card}>
-        <h3>📊 Business Dashboard</h3>
+        <h3>📊 Business</h3>
         <div>Revenue: ${metrics.revenue.toFixed(0)}</div>
-        <div>Miles: {metrics.miles}</div>
         <div>Profit: ${metrics.profit.toFixed(0)}</div>
-        <div>Avg RPM: ${metrics.avgRPM.toFixed(2)}</div>
-        <div>Best Lane: {metrics.bestLane}</div>
       </div>
     </div>
   );
