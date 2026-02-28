@@ -1,143 +1,114 @@
-import { useState, useMemo } from "react";
-
-const STATES = ["TX","FL","GA","TN","NC","SC","AL","VA","KY","OK","MO"];
+import { useState } from "react";
 
 export default function Home(){
-  const [loads,setLoads]=useState([]);
-  const [history,setHistory]=useState([]);
-  const [raw,setRaw]=useState("");
+  const [rate,setRate]=useState("");
+  const [miles,setMiles]=useState("");
+  const [deadhead,setDeadhead]=useState("");
+  const [state,setState]=useState("");
   const [diesel,setDiesel]=useState(4.0);
   const [mpg,setMpg]=useState(10);
-  const [suggestion,setSuggestion]=useState("");
-
-  const [fuelExp,setFuelExp]=useState([]);
-  const [maintExp,setMaintExp]=useState([]);
-  const [fixedExp]=useState([500,1415]);
+  const [decision,setDecision]=useState("");
+  const [history,setHistory]=useState([]);
 
   const COST = (diesel/mpg) + 0.15 + 0.22;
 
-  const parseLoad=(text)=>{
-    const nums = text.match(/\d+/g)||[];
-    return {
-      rate: nums[0]||"",
-      miles: nums[1]||"",
-      deadhead:"50",
-      state: STATES.find(s=>text.toUpperCase().includes(s))||"TX"
-    };
-  };
+  const STRONG_MARKETS = ["TX","FL","GA","TN","NC"];
 
-  const addLoad=()=>{
-    const l=parseLoad(raw);
-    setLoads([...loads,l]);
-    setRaw("");
-  };
+  const analyze = () => {
+    const total = Number(miles) + Number(deadhead);
+    if(!rate || !total) return;
 
-  const analyzed = useMemo(()=>{
-    return loads.map(l=>{
-      const total=Number(l.miles)+Number(l.deadhead);
-      if(!l.rate||!total) return null;
+    const rpm = rate / total;
+    const profit = (rpm - COST) * total;
 
-      const rpm=l.rate/total;
-      const profit=(rpm-COST)*total;
+    // 📊 PERFORMANCE LEARNING
+    const avgRPM = history.length
+      ? history.reduce((sum,l)=>sum+l.rpm,0)/history.length
+      : 1.5;
 
-      return {...l,total,rpm,profit};
-    }).filter(Boolean).sort((a,b)=>b.profit-a.profit);
-  },[loads,COST]);
+    // 🧠 ADAPTIVE RULES
+    let minRPM = 1.5;
+    let minProfit = 300;
 
-  const run=()=>{
-    setHistory([...history,...analyzed]);
-
-    if(analyzed.length>0){
-      const best=analyzed[0];
-      setSuggestion(`BOOK THIS → $${best.rate} | ${best.miles}mi | ${best.state}`);
+    if(avgRPM > 1.7){
+      minRPM = 1.7;
+      minProfit = 400;
+    } 
+    else if(avgRPM < 1.4){
+      minRPM = 1.4;
+      minProfit = 250;
     }
+
+    // 🤖 DECISION ENGINE
+    let result = "";
+
+    if(rpm >= minRPM && profit >= minProfit){
+      result = "🔥 YES – TAKE IT";
+    }
+    else if(
+      rpm >= (minRPM - 0.15) &&
+      profit >= (minProfit - 100) &&
+      STRONG_MARKETS.includes(state)
+    ){
+      result = "⚠️ CONDITIONAL";
+    }
+    else{
+      result = "❌ NO – REJECT";
+    }
+
+    setDecision(result);
+
+    // 🧠 STORE HISTORY
+    setHistory([...history, { rpm, profit, state }]);
   };
-
-  const metrics = useMemo(()=>{
-    const revenue = history.reduce((s,l)=>s+Number(l.rate||0),0);
-    const miles = history.reduce((s,l)=>s+l.total,0);
-
-    const fuelTotal = fuelExp.reduce((s,e)=>s+Number(e||0),0);
-    const maintTotal = maintExp.reduce((s,e)=>s+Number(e||0),0);
-    const fixedTotal = fixedExp.reduce((s,e)=>s+Number(e||0),0);
-
-    const expenses = fuelTotal + maintTotal + fixedTotal;
-    const profit = revenue - (miles*COST) - expenses;
-
-    const avgRPM = miles ? revenue/miles : 0;
-
-    const lanes={};
-    history.forEach(l=>{
-      lanes[l.state]=(lanes[l.state]||0)+l.profit;
-    });
-
-    const sorted = Object.entries(lanes).sort((a,b)=>b[1]-a[1]);
-
-    return {
-      revenue,
-      miles,
-      profit,
-      avgRPM,
-      expenses,
-      topLane: sorted[0]?.[0] || "-",
-      worstLane: sorted[sorted.length-1]?.[0] || "-"
-    };
-  },[history,fuelExp,maintExp,fixedExp,COST]);
 
   return(
     <div style={{padding:20,background:"#020617",color:"white",minHeight:"100vh"}}>
-      <h1>🚛 3HC Company AI</h1>
+      <h1>🚛 3HC Adaptive AI</h1>
 
-      <div style={card}>
-        <textarea style={input} value={raw} onChange={e=>setRaw(e.target.value)} placeholder="Paste loads" />
-        <button style={btn} onClick={addLoad}>Add Load</button>
-      </div>
+      <input placeholder="Rate ($)" value={rate} onChange={e=>setRate(e.target.value)} style={input}/>
+      <input placeholder="Loaded Miles" value={miles} onChange={e=>setMiles(e.target.value)} style={input}/>
+      <input placeholder="Deadhead Miles" value={deadhead} onChange={e=>setDeadhead(e.target.value)} style={input}/>
+      <input placeholder="State (TX, FL...)" value={state} onChange={e=>setState(e.target.value.toUpperCase())} style={input}/>
 
-      <div style={card}>
-        <input style={input} value={diesel} onChange={e=>setDiesel(e.target.value)} />
-        <input style={input} value={mpg} onChange={e=>setMpg(e.target.value)} />
-        <div>Cost/Mile: ${COST.toFixed(2)}</div>
-      </div>
+      <h3>⛽ Cost Settings</h3>
+      <input value={diesel} onChange={e=>setDiesel(e.target.value)} style={input}/>
+      <input value={mpg} onChange={e=>setMpg(e.target.value)} style={input}/>
+      <div>Cost/Mile: ${COST.toFixed(2)}</div>
 
-      <button style={btn} onClick={run}>Run AI</button>
+      <button style={btn} onClick={analyze}>Check Load</button>
 
-      {suggestion && (
-        <div style={{...card,border:"2px solid #22c55e"}}>
-          <h2>🤖 AI Decision</h2>
-          <div>{suggestion}</div>
+      {decision && (
+        <div style={{...card, fontSize:20, fontWeight:"bold"}}>
+          {decision}
         </div>
       )}
-
-      {analyzed.map((l,i)=>(
-        <div key={i} style={card}>
-          <div>Profit: ${l.profit.toFixed(0)}</div>
-          <div>RPM: ${l.rpm.toFixed(2)}</div>
-          <div>{l.state}</div>
-        </div>
-      ))}
-
-      <div style={card}>
-        <input style={input} placeholder="Fuel" onKeyDown={e=>{
-          if(e.key==="Enter"){setFuelExp([...fuelExp,e.target.value]);e.target.value="";}
-        }}/>
-        <input style={input} placeholder="Maintenance" onKeyDown={e=>{
-          if(e.key==="Enter"){setMaintExp([...maintExp,e.target.value]);e.target.value="";}
-        }}/>
-      </div>
-
-      <div style={card}>
-        <h3>📊 Dashboard</h3>
-        <div>Revenue: ${metrics.revenue.toFixed(0)}</div>
-        <div>Expenses: ${metrics.expenses.toFixed(0)}</div>
-        <div>Profit: ${metrics.profit.toFixed(0)}</div>
-        <div>Avg RPM: ${metrics.avgRPM.toFixed(2)}</div>
-        <div>Top Lane: {metrics.topLane}</div>
-        <div>Worst Lane: {metrics.worstLane}</div>
-      </div>
     </div>
   );
 }
 
-const card={padding:15,marginBottom:12,background:"#1e293b",borderRadius:12};
-const input={display:"block",width:"100%",padding:"10px",marginBottom:"8px",borderRadius:"8px"};
-const btn={width:"100%",padding:"12px",marginTop:"8px",borderRadius:"10px",background:"#3b82f6",color:"white"};
+const input={
+  display:"block",
+  width:"100%",
+  padding:"10px",
+  marginBottom:"10px",
+  borderRadius:"8px"
+};
+
+const btn={
+  width:"100%",
+  padding:"12px",
+  marginTop:"10px",
+  borderRadius:"10px",
+  background:"#3b82f6",
+  color:"white",
+  fontWeight:"bold"
+};
+
+const card={
+  marginTop:"20px",
+  padding:"20px",
+  background:"#1e293b",
+  borderRadius:"12px",
+  textAlign:"center"
+};
