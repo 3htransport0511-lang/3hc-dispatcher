@@ -63,29 +63,55 @@ export default function Home(){
   };
 
   return(
-    <div style={{padding:20}}>
-      <h1>3HC Dispatcher</h1>
+    <div style={{padding:20, fontFamily:"Arial", background:"#0f172a", minHeight:"100vh", color:"white"}}>
+      <h1 style={{fontSize:28, fontWeight:"bold", marginBottom:20}}>🚛 3HC Dispatcher</h1>
 
       {loads.map((l,i)=>(
-        <div key={i} style={{marginBottom:10}}>
-          <input placeholder="Rate" onChange={e=>update(i,"rate",e.target.value)} />
-          <input placeholder="Miles" onChange={e=>update(i,"miles",e.target.value)} />
-          <input placeholder="Deadhead" onChange={e=>update(i,"deadhead",e.target.value)} />
-          <input placeholder="State" onChange={e=>update(i,"state",e.target.value)} />
+        <div key={i} style={{marginBottom:15, padding:15, background:"#1e293b", borderRadius:12}}>
+          <input placeholder="Rate ($)" style={input} onChange={e=>update(i,"rate",e.target.value)} />
+          <input placeholder="Loaded Miles" style={input} onChange={e=>update(i,"miles",e.target.value)} />
+          <input placeholder="Deadhead Miles" style={input} onChange={e=>update(i,"deadhead",e.target.value)} />
+          <select style={input} onChange={e=>update(i,"state",e.target.value)}>
+            {["FL","GA","TN","NC","TX","SC","AL","VA","KY","OK","MO","KS","AR"].map(s=>(
+              <option key={s}>{s}</option>
+            ))}
+          </select>
         </div>
       ))}
 
-      <button onClick={add}>+ Add Load</button>
-      <button onClick={run}>Analyze</button>
+      <button style={btn} onClick={add}>+ Add Load</button>
+      <button style={{...btn, background:"#22c55e"}} onClick={run}>Analyze Loads</button>
 
       {results.map((r,i)=>(
-        <div key={i} style={{marginTop:10}}>
-          <b>#{i+1} {r.decision}</b>
-          <p>Adj RPM: {r.adj.toFixed(2)}</p>
-          <p>Profit: ${r.prof.toFixed(0)}</p>
-          <p>Next: {r.next}</p>
+        <div key={i} style={{marginTop:15, padding:15, background:"#020617", borderRadius:12}}>
+          <div style={{fontWeight:"bold", fontSize:18}}>#{i+1} {r.decision}</div>
+          <div>Adj RPM: ${r.adj.toFixed(2)}</div>
+          <div>Profit: ${r.prof.toFixed(0)}</div>
+          <div style={{fontSize:13, opacity:0.8}}>Next: {r.next}</div>
         </div>
       ))}
     </div>
   );
 }
+
+const input = {
+  display:"block",
+  width:"100%",
+  padding:"10px",
+  marginBottom:"8px",
+  borderRadius:"8px",
+  border:"none",
+  fontSize:"16px"
+};
+
+const btn = {
+  width:"100%",
+  padding:"12px",
+  marginTop:"8px",
+  borderRadius:"10px",
+  border:"none",
+  fontSize:"16px",
+  fontWeight:"bold",
+  background:"#3b82f6",
+  color:"white"
+};
